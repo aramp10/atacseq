@@ -129,3 +129,74 @@ You can cite the `nf-core` publication as follows:
 > Philip Ewels, Alexander Peltzer, Sven Fillinger, Harshil Patel, Johannes Alneberg, Andreas Wilm, Maxime Ulysse Garcia, Paolo Di Tommaso & Sven Nahnsen.
 >
 > _Nat Biotechnol._ 2020 Feb 13. doi: [10.1038/s41587-020-0439-x](https://dx.doi.org/10.1038/s41587-020-0439-x).
+
+# BU SCC Instructions
+
+Ticket: [INC20794298](https://bu.service-now.com/now/nav/ui/classic/params/target/incident.do%3Fsysparm_tiny%3D9dfc3f79974e69d09a3a7be0f053afaf%26sys_id%3D398a722d9775fad021effbce2153af17%26sysparm_record_row%3D8)
+
+> I have installed nextlow software and a genomics pipeline via a conda environment. However, all the assets seem to show up in my .nextflow folder in my home directory.  This means I am using half of my quote for home to host this pipeline.  I tried to specify scratch for temp space as best I could, but I was wondering how to change this setup...
+
+First, let’s address how to run Nextflow in your SCC project space instead of your home directory.
+
+I suggest creating a user-specific folder in the SCC project space to keep files organized:
+
+```bash
+cd /restricted/projectnb/valimlab
+mkdir nleone
+cd nleone
+
+# Clone the GitHub repository:
+git clone https://github.com/nf-core/atacseq.git
+cd atacseq
+
+# For reproducilibity, specify the version of the module
+module load nextflow/25.04.7
+
+# Run the test version locally:
+nextflow run main.nf -profile test,singularity --outdir atacseq_out_test -process.executor local
+# Expected output:
+# -[nf-core/atacseq] Pipeline completed successfully-
+# Duration : 6m 19s
+# CPU hours : 1.2
+# Succeeded : 265
+```
+
+The next step will be to edit the `nextflow.config` file so that each task is submitted as a job rather than running the pipeline locally. I’ll do some testing and share the updated configuration once it’s working.
+
+I’ve created and tested a Nextflow configuration file that submits each pipeline task as an SGE job instead of running everything locally. I'll assume you have a folder like this: `/restricted/projectnb/valimlab/nleone/atacseq`
+
+Note: the "atacseq" folder is created when you run "git clone", which copies the GitHub repository into your project space.
+
+Here are the commands to copy the configuration file and run the test:
+
+```bash
+# Copy the Nextflow configuration file
+cp /net/scc1/scratch/aramp10/to_nleone/nextflow.config /restricted/projectnb/valimlab/nleone/atacseq
+
+# Load the module (if not already loaded)
+module load nextflow/25.04.7
+
+# Clean up from previous Nextflow run(s):
+rm -r .nextflow .nextflow.log* work
+
+# Run the test version using SGE as the executor:
+nextflow run main.nf -profile test,singularity --outdir atacseq_out_test
+
+# Expected output
+# -[nf-core/atacseq] Pipeline completed successfully-
+# Completed at: 15-Dec-2025 13:13:09
+# Duration : 29m 24s
+# CPU hours : 1.0
+# Succeeded : 265
+```
+
+This configuration will submit each task as a separate job and successfully process the test dataset. Note: this run took about 30 minutes because each task waits in the queue until a compute node becomes available.
+
+Next steps:
+* After the test completes successfully, try running the pipeline on a small subset of your real data (5–10 samples).
+* Once that works, proceed with the full dataset (n = 40 samples).
+
+Note:
+
+* Submitting each task as a job introduces queue time for each task, which can significantly slow down the pipeline (time to run: ~30 minutes).
+* Running locally avoids this queue time, but may be limited by available resources on the local machine (time to run: ~6 minutes).
