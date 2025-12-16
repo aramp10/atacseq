@@ -6,3 +6,4 @@ results/
 testing/
 testing*
 *.pyc
+atacseq_out_test

@@ -200,3 +200,95 @@ Note:
 
 * Submitting each task as a job introduces queue time for each task, which can significantly slow down the pipeline (time to run: ~30 minutes).
 * Running locally avoids this queue time, but may be limited by available resources on the local machine (time to run: ~6 minutes).
+
+## Error message: `No space left on device`
+
+**Issue Summary:**
+
+The ATAC-seq pipeline failed at the `SAMTOOLS_FLAGSTAT` process for `TREATMENT_REP2` with exit status `1`.
+The error occurred during the samtools flagstat command because the script could not create a temporary file for a here-document:
+`No space left on device`
+
+Detailed error message:
+
+```
+ERROR ~ Error executing process > 'NFCORE_ATACSEQ:ATACSEQ:MERGED_LIBRARY_FILTER_BAM:BAM_SORT_STATS_SAMTOOLS:BAM_STATS_SAMTOOLS:SAMTOOLS_FLAGSTAT (TREATMENT_REP2)'
+
+Caused by:
+Process `NFCORE_ATACSEQ:ATACSEQ:MERGED_LIBRARY_FILTER_BAM:BAM_SORT_STATS_SAMTOOLS:BAM_STATS_SAMTOOLS:SAMTOOLS_FLAGSTAT (TREATMENT_REP2)` terminated with an error exit status (1)
+
+Command executed:
+
+samtools \
+flagstat \
+--threads 1 \
+TREATMENT_REP2.mLb.clN.sorted.bam \
+> TREATMENT_REP2.mLb.clN.sorted.bam.flagstat
+
+cat <<-END_VERSIONS > versions.yml
+"NFCORE_ATACSEQ:ATACSEQ:MERGED_LIBRARY_FILTER_BAM:BAM_SORT_STATS_SAMTOOLS:BAM_STATS_SAMTOOLS:SAMTOOLS_FLAGSTAT":
+samtools: $(echo $(samtools --version 2>&1) | sed 's/^.*samtools //; s/Using.*$//')
+END_VERSIONS
+
+Command exit status:
+1
+
+Command output:
+(empty)
+
+Command error:
+.command.sh: line 8: cannot create temp file for here-document: No space left on device
+
+Work dir:
+/restricted/projectnb/valimlab/nleone/atacseq/work/bb/5196e0de86941f074374ca7c99e0c2
+
+Container:
+/restricted/projectnb/valimlab/nleone/atacseq/work/singularity/depot.galaxyproject.org-singularity-samtools-1.17--h00cdaf9_0.img
+
+Tip: you can try to figure out what's wrong by changing to the process work dir and showing the script file named `.command.sh`
+```
+
+**Investigation:**
+
+* Re-ran the wrapper script (bash .command.run) in the process work directory; it completed without error.
+Output files (`.exitcode, .command.trace, versions.yml, .command.err, .command.out, and the .bam.flagstat` file) were present and normal.
+* This suggests the error was likely transient, possibly due to temporary disk space issues on the compute node.
+
+**Next Steps:**
+
+* Re-run the pipeline using the -resume option to continue from the previous state
+* Ensure all previous Nextflow run files are retained to allow proper resumption.
+In other words, don't do the usual cleanup after running the pipeline.
+
+I investigated the error by running the following:
+
+```bash
+cd /restricted/projectnb/valimlab/nleone/atacseq/work/bb/5196e0de86941f074374ca7c99e0c2
+# Re-run the wrapper as Nextflow would
+bash .command.run # no message
+ls -alht
+# -rw-r--r-- 1 nleone 1 Dec 15 22:15 .exitcode
+# -rw-r--r-- 1 nleone 266 Dec 15 22:15 .command.trace
+# -rw-r--r-- 1 nleone 133 Dec 15 22:15 versions.yml
+# -rw-r--r-- 1 nleone 519 Dec 15 22:15 TREATMENT_REP2.mLb.clN.sorted.bam.flagstat
+# -rw-r--r-- 1 nleone 0 Dec 15 22:15 .command.err
+# -rw-r--r-- 1 nleone 0 Dec 15 22:15 .command.out
+```
+
+I was expecting this to reproduce the error message but it ran without error. Perhaps this was a transient issue with that compute node. Could you try to re-run the Nextflow pipeline using the `[-resume]` option? Here's an example:
+
+```bash
+cd /restricted/projectnb/valimlab/nleone/atacseq
+module load nextflow/25.04.7
+# Nextflow resumes from the previous run by default.
+# https://www.nextflow.io/docs/latest/cache-and-resume.html
+# Add the [-resume] option:
+nextflow run main.nf -resume -profile singularity -params-file /restricted/projectnb/valimlab/mvbresponses/ATACseq/data/working/nf-core_atacseq/parameterFiles/wave1__params_v1.1.yaml -bg
+```
+
+Be sure to keep all files from the previous Nextflow runs as this allows for the pipeline to resume when needed.
+
+Client reply:
+
+> OK! Well & ATAC-seq pipeline successfully resumed and then completed.  
+> I will look through the output and the QC items in particular and if there are any further issues I'll let you know. But for now this is a good sign :)
