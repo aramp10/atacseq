@@ -196,7 +196,7 @@ Next steps:
 * After the test completes successfully, try running the pipeline on a small subset of your real data (5–10 samples).
 * Once that works, proceed with the full dataset (n = 40 samples).
 
-Note:
+Notes:
 
 * Submitting each task as a job introduces queue time for each task, which can significantly slow down the pipeline (time to run: ~30 minutes).
 * Running locally avoids this queue time, but may be limited by available resources on the local machine (time to run: ~6 minutes).
@@ -256,7 +256,7 @@ Output files (`.exitcode, .command.trace, versions.yml, .command.err, .command.o
 
 **Next Steps:**
 
-* Re-run the pipeline using the -resume option to continue from the previous state
+* Re-run the pipeline using the `[-resume]` option to continue from the previous state
 * Ensure all previous Nextflow run files are retained to allow proper resumption.
 In other words, don't do the usual cleanup after running the pipeline.
 
